@@ -21,7 +21,8 @@ class ChatResponse(BaseModel):
     reply: str
 
 DATE_PATTERN = r"\b(\d{1,2}[/\-]\d{1,2}(?:[/\-]\d{2,4})?|monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|today)\b"
-TIME_PATTERN = r"\b(\d{1,2}\s?(am|pm)|morning|afternoon|evening|noon)\b"
+# Hour-first alternatives so "5:30 pm" captures the hour, not just "30 pm".
+TIME_PATTERN = r"\b(\d{1,2}(?::\d{2})?\s*(?:am|pm)|\d{1,2}:\d{2}|morning|afternoon|evening|noon|midday)\b"
 BOOKING_INTENT_PATTERN = r"(book|schedule|arrange|visit|site visit)"
 
 
@@ -35,6 +36,65 @@ def extract_booking_details(text: str):
     )
 
 
+def build_booking_context(message: str) -> str:
+    """
+    Decide what the LLM is allowed to say about booking for this turn.
+
+    Returns a SYSTEM NOTE string, or "" when the message shows no booking intent.
+    A booking may only be described as confirmed when attempt_booking() actually
+    returned "confirmed" — otherwise the note forbids confirming anything.
+    """
+    if not re.search(BOOKING_INTENT_PATTERN, message.lower()):
+        return ""
+
+    date, time = extract_booking_details(message)
+
+    if date and time:
+        result = attempt_booking(date, time)
+        # TEMP DEBUG: proves attempt_booking() really ran in the backend.
+        print(
+            f"[BOOKING DEBUG] date={date!r} time={time!r} "
+            f"attempt_booking_called=True status={result['status']!r}",
+            flush=True,
+        )
+        if result["status"] == "confirmed":
+            return (
+                f"[SYSTEM NOTE: Booking system confirmed a site visit on {date} "
+                f"at {time} for Project Northstar One, Sector 79, Gurugram. "
+                f"Relay this confirmation clearly to the customer.]"
+            )
+        return (
+            f"[SYSTEM NOTE: Booking system FAILED to confirm the slot on {date} "
+            f"at {time}. Reason: {result['reason']}. Do NOT tell the customer the "
+            f"visit is booked or confirmed. Apologize briefly, say plainly that you "
+            f"could not confirm that slot, and offer to have the sales team call to "
+            f"finalize instead.]"
+        )
+
+    # Intent detected, but details are incomplete -> booking was NEVER attempted.
+    missing = []
+    if not date:
+        missing.append("date")
+    if not time:
+        missing.append("time")
+    missing_text = " and ".join(missing)
+
+    # TEMP DEBUG: attempt_booking() deliberately not called.
+    print(
+        f"[BOOKING DEBUG] date={date!r} time={time!r} "
+        f"attempt_booking_called=False missing={missing_text!r}",
+        flush=True,
+    )
+
+    return (
+        f"[SYSTEM NOTE: Booking intent detected but the booking system was NOT "
+        f"called because the {missing_text} is missing. No booking exists. "
+        f"Do NOT confirm any booking. Do NOT say the visit is booked, confirmed, "
+        f"scheduled, or locked in. Do NOT invent a date or time. Ask the customer "
+        f"for the missing {missing_text} before proceeding, one question at a time.]"
+    )
+
+
 @router.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest):
     session_id = req.session_id
@@ -43,24 +103,9 @@ def chat(req: ChatRequest):
 
     add_message(session_id, "user", req.message)
 
-    # Check if this message looks like a booking attempt with date + time
-    booking_context = ""
-    if re.search(BOOKING_INTENT_PATTERN, req.message.lower()):
-        date, time = extract_booking_details(req.message)
-        if date and time:
-            result = attempt_booking(date, time)
-            if result["status"] == "confirmed":
-                booking_context = (
-                    f"[SYSTEM NOTE: Booking system confirmed a site visit on {date} "
-                    f"at {time} for Project Northstar One, Sector 79, Gurugram. "
-                    f"Relay this confirmation clearly to the customer.]"
-                )
-            else:
-                booking_context = (
-                    f"[SYSTEM NOTE: Booking system failed to confirm the slot on {date} "
-                    f"at {time}. Reason: {result['reason']}. Apologize briefly and offer "
-                    f"to have the sales team call to finalize instead.]"
-                )
+    # Recomputed per request from this message only — no carry-over between turns
+    # or sessions.
+    booking_context = build_booking_context(req.message)
 
     messages = [{"role": "system", "content": SYSTEM_PROMPT}] + get_history(session_id)
     if booking_context:
