@@ -10,8 +10,8 @@ app = FastAPI(title="Northstar Homes AI Agent")
 # Allow Next.js frontend (localhost:3000) to call this API
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,   # note: "*" ke saath credentials True nahi ho sakta
     allow_methods=["*"],
     allow_headers=["*"],
 )
