@@ -19,12 +19,42 @@ export default function Page() {
   const [input, setInput] = useState("")
   const [analytics, setAnalytics] = useState<Analytics | null>(null)
 
+  // The scroll viewport itself, plus a sentinel after the last bubble as a
+  // fallback if the ref ever fails to attach.
   const scrollRef = useRef<HTMLDivElement | null>(null)
+  const bottomRef = useRef<HTMLDivElement | null>(null)
+  const firstPaint = useRef(true)
 
+  // Dev-only: `?seed=20` fills the transcript so the scroll container can be
+  // exercised without a backend. Remove whenever you like.
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    if (process.env.NODE_ENV !== "development") return
+    const n = Number(new URLSearchParams(window.location.search).get("seed") || 0)
+    if (!n) return
+    setMessages(
+      Array.from({ length: n }, (_, i) => ({
+        role: (i % 2 === 0 ? "user" : "assistant") as "user" | "assistant",
+        content:
+          i % 2 === 0
+            ? `Message ${i + 1}: I am interested in a 3 BHK, what is the price?`
+            : `Message ${i + 1}: The 3 BHK at Project Northstar One starts at 1.75 crore rupees onwards, in Sector 79, Gurugram.`,
+      }))
+    )
+  }, [])
+
+  // Pin the transcript to the newest message on every append.
+  useEffect(() => {
+    // jump on the first render, animate for messages that arrive later
+    const behavior: ScrollBehavior = firstPaint.current ? "auto" : "smooth"
+    const el = scrollRef.current
+    if (el) {
+      // scrollHeight includes the viewport's bottom padding, so this lands on
+      // the true bottom — scrollIntoView() stops short of it.
+      el.scrollTo({ top: el.scrollHeight, behavior })
+    } else {
+      bottomRef.current?.scrollIntoView({ behavior, block: "end" })
     }
+    firstPaint.current = false
   }, [messages, loading])
 
   async function sendMessage(messageText: string) {
@@ -75,10 +105,13 @@ export default function Page() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-50 p-4">
-      <div className="w-full max-w-3xl">
-        <Card className="flex flex-col h-[70vh] md:h-[75vh]">
-          <CardHeader className="flex items-center justify-between">
+    // h-screen (not min-h-screen) + overflow-hidden: the page is exactly the
+    // viewport, so growth has to be absorbed by the transcript, not the body.
+    <div className="h-screen overflow-hidden flex items-center justify-center bg-background p-4">
+      <div className="w-full max-w-3xl max-h-full flex flex-col gap-4 overflow-y-auto">
+        {/* Bounded height + overflow-hidden: the card is a hard frame. */}
+        <Card className="flex flex-col h-[70vh] md:h-[75vh] shrink-0 overflow-hidden">
+          <CardHeader className="flex items-center justify-between gap-3">
             <div>
               <CardTitle>Northstar Homes — Chat with Riya</CardTitle>
             </div>
@@ -89,11 +122,13 @@ export default function Page() {
             </div>
           </CardHeader>
 
-          <CardContent className="flex-1 p-0">
-            <ScrollArea ref={scrollRef as any} className="h-full">
-              <div className="flex flex-col p-4">
+          {/* min-h-0 is the fix: it lets this flex child shrink below its
+              content height so the ScrollArea inside can actually scroll. */}
+          <CardContent className="flex-1 min-h-0 p-0">
+            <ScrollArea ref={scrollRef} className="h-full">
+              <div className="flex flex-col gap-3">
                 {messages.length === 0 && (
-                  <div className="text-center text-sm text-zinc-500 py-8">
+                  <div className="text-center text-sm text-muted-foreground py-8">
                     Ask Riya about homes, pricing, and availability.
                   </div>
                 )}
@@ -101,46 +136,52 @@ export default function Page() {
                 {messages.map((m, idx) => (
                   <div
                     key={idx}
-                    className={`flex items-end gap-3 ${
+                    className={`flex items-end gap-3 min-w-0 ${
                       m.role === "user" ? "justify-end" : "justify-start"
                     }`}
                   >
                     {m.role === "assistant" && (
-                      <Avatar>
+                      <Avatar className="shrink-0 bg-muted text-foreground">
                         <AvatarFallback>R</AvatarFallback>
                       </Avatar>
                     )}
 
+                    {/* wrap-anywhere + min-w-0: a long unbroken token (URL,
+                        pasted id) breaks instead of overflowing the card. */}
                     <div
-                      className={`max-w-[80%] px-4 py-2 text-sm rounded-lg ${
+                      className={`max-w-[80%] min-w-0 wrap-anywhere px-4 py-2 text-sm rounded-lg ${
                         m.role === "user"
                           ? "bg-primary text-primary-foreground rounded-br-none"
-                          : "bg-zinc-100 text-zinc-900 rounded-bl-none"
+                          : "bg-muted text-foreground rounded-bl-none"
                       }`}
                     >
                       {m.content}
                     </div>
 
-                    {m.role === "user" && <div className="w-9" />}
+                    {m.role === "user" && <div className="w-9 shrink-0" />}
                   </div>
                 ))}
 
                 {loading && (
                   <div className="flex items-center gap-3 justify-start">
-                    <Avatar>
+                    <Avatar className="shrink-0 bg-muted text-foreground">
                       <AvatarFallback>R</AvatarFallback>
                     </Avatar>
-                    <Badge className="bg-zinc-100 text-zinc-700">
+                    <Badge className="bg-muted text-muted-foreground">
                       <span className="animate-pulse">typing</span>
                       <span className="ml-2">...</span>
                     </Badge>
                   </div>
                 )}
+
+                {/* auto-scroll target */}
+                <div ref={bottomRef} className="h-0 shrink-0" aria-hidden />
               </div>
             </ScrollArea>
           </CardContent>
 
-          <CardFooter>
+          {/* Outside the scroll area and shrink-0, so the composer never moves. */}
+          <CardFooter className="shrink-0">
             <div className="flex items-center gap-2 w-full">
               <Input
                 placeholder="Write a message..."
@@ -153,27 +194,36 @@ export default function Page() {
           </CardFooter>
         </Card>
 
-        <Separator />
-
         {analytics && (
-          <Card className="mt-4">
-            <CardHeader>
-              <CardTitle>Conversation Analytics</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {Object.entries(analytics).map(([k, v]) => {
-                  const isBadge = ["interest_level", "site_visit_status", "opt_out"].includes(k)
-                  return (
-                    <div key={k} className="flex items-center justify-between">
-                      <div className="text-sm text-zinc-600 capitalize">{k.replace(/_/g, " ")}</div>
-                      <div>{isBadge ? <Badge className="bg-zinc-100">{String(v)}</Badge> : <div className="text-sm">{String(v)}</div>}</div>
-                    </div>
-                  )
-                })}
-              </div>
-            </CardContent>
-          </Card>
+          <>
+            <Separator className="my-0 shrink-0" />
+            <Card className="shrink-0">
+              <CardHeader>
+                <CardTitle>Conversation Analytics</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {Object.entries(analytics).map(([k, v]) => {
+                    const isBadge = ["interest_level", "site_visit_status", "opt_out"].includes(k)
+                    return (
+                      <div key={k} className="flex items-center justify-between gap-3">
+                        <div className="text-sm text-muted-foreground capitalize">
+                          {k.replace(/_/g, " ")}
+                        </div>
+                        <div>
+                          {isBadge ? (
+                            <Badge className="bg-primary/15 text-foreground">{String(v)}</Badge>
+                          ) : (
+                            <div className="text-sm text-foreground">{String(v)}</div>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </>
         )}
       </div>
     </div>

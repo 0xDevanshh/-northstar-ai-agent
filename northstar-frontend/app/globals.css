@@ -83,38 +83,50 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+/*
+ * Dark theme — deep neutral slate with a single deep-blue accent.
+ * Every value is a token override, so all shadcn components inherit it.
+ * Contrast (WCAG AA, verified):
+ *   foreground on background .......... 19.17:1
+ *   foreground on card ................ 16.38:1
+ *   foreground on muted (bot bubble) .. 12.15:1
+ *   primary-foreground on primary ..... 4.80:1  (user bubble)
+ *   muted-foreground on card .......... 6.89:1  (placeholder text)
+ * Surface steps are ~0.09 oklch lightness apart so each reads as its own layer.
+ */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --background: oklch(0.135 0.008 265);
+  --foreground: oklch(0.985 0.002 265);
+  --card: oklch(0.225 0.01 265);
+  --card-foreground: oklch(0.985 0.002 265);
+  --popover: oklch(0.225 0.01 265);
+  --popover-foreground: oklch(0.985 0.002 265);
+  /* single accent: deep blue — buttons, user bubbles, focus rings */
+  --primary: oklch(0.55 0.19 262);
+  --primary-foreground: oklch(0.985 0.002 265);
+  --secondary: oklch(0.285 0.01 265);
+  --secondary-foreground: oklch(0.985 0.002 265);
+  --muted: oklch(0.32 0.012 265);
+  --muted-foreground: oklch(0.72 0.015 265);
+  --accent: oklch(0.32 0.012 265);
+  --accent-foreground: oklch(0.985 0.002 265);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 18%);
+  --ring: oklch(0.55 0.19 262);
+  --chart-1: oklch(0.55 0.19 262);
+  --chart-2: oklch(0.62 0.15 255);
+  --chart-3: oklch(0.72 0.015 265);
+  --chart-4: oklch(0.45 0.14 262);
+  --chart-5: oklch(0.32 0.012 265);
+  --sidebar: oklch(0.225 0.01 265);
+  --sidebar-foreground: oklch(0.985 0.002 265);
+  --sidebar-primary: oklch(0.55 0.19 262);
+  --sidebar-primary-foreground: oklch(0.985 0.002 265);
+  --sidebar-accent: oklch(0.32 0.012 265);
+  --sidebar-accent-foreground: oklch(0.985 0.002 265);
+  --sidebar-border: oklch(1 0 0 / 12%);
+  --sidebar-ring: oklch(0.55 0.19 262);
 }
 
 @layer base {
