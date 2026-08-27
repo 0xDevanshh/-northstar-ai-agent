@@ -1,6 +1,6 @@
 # Northstar Homes AI Sales Agent
 
-AI conversational agent for Project Northstar One (Sector 79, Gurugram) — built for the Huvo AI Forward Deployed Engineer assignment.
+AI conversational agent for Project Northstar One (Sector 79, Gurugram)
 
 ## Tech Stack
 - Backend: FastAPI (Python)
